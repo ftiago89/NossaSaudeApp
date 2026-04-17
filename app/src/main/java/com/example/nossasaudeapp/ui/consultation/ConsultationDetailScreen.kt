@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,10 +44,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.example.nossasaudeapp.domain.model.Consultation
@@ -118,10 +120,25 @@ fun ConsultationDetailScreen(
 
             state.consultation?.let { c ->
                 item { ConsultationHeader(c) }
+
+                if (state.prescriptionImages.isNotEmpty()) {
+                    item { SectionTitle("Receitas") }
+                    item {
+                        ImageGrid(
+                            images = state.prescriptionImages,
+                            onTap = { index ->
+                                viewModel.openViewer(state.prescriptionImages, index, onViewImages)
+                            },
+                            modifier = Modifier.padding(horizontal = Spacing.screenPaddingH, vertical = 4.dp),
+                        )
+                    }
+                }
+
                 if (c.medications.isNotEmpty()) {
                     item { SectionTitle("Medicamentos") }
                     items(c.medications) { med -> MedicationItem(med) }
                 }
+
                 if (c.exams.isNotEmpty()) {
                     item { SectionTitle("Exames") }
                     items(c.exams, key = { it.id }) { exam ->
@@ -132,37 +149,6 @@ fun ConsultationDetailScreen(
                             onViewImages = { idx ->
                                 viewModel.openViewer(resultImages, idx, onViewImages)
                             },
-                        )
-                    }
-                }
-                if (c.tags.isNotEmpty()) {
-                    item {
-                        Column(modifier = Modifier.padding(horizontal = Spacing.screenPaddingH, vertical = 8.dp)) {
-                            SectionTitle("Tags", compact = true)
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                c.tags.forEach { NsChip(text = it, variant = NsChipVariant.Neutral) }
-                            }
-                        }
-                    }
-                }
-                if (!c.notes.isNullOrBlank()) {
-                    item {
-                        Column(modifier = Modifier.padding(horizontal = Spacing.screenPaddingH, vertical = 8.dp)) {
-                            SectionTitle("Observações", compact = true)
-                            Text(c.notes, style = MaterialTheme.typography.bodySmall, color = NsColors.TextSecondary)
-                        }
-                    }
-                }
-
-                if (state.prescriptionImages.isNotEmpty()) {
-                    item { SectionTitle("Receitas") }
-                    item {
-                        PrescriptionGrid(
-                            images = state.prescriptionImages,
-                            onTap = { index ->
-                                viewModel.openViewer(state.prescriptionImages, index, onViewImages)
-                            },
-                            modifier = Modifier.padding(horizontal = Spacing.screenPaddingH, vertical = 4.dp),
                         )
                     }
                 }
@@ -198,32 +184,84 @@ fun ConsultationDetailScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ConsultationHeader(c: Consultation) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.screenPaddingH, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(horizontal = Spacing.screenPaddingH, vertical = Spacing.sm)
+            .shadow(Elevation.cardDefault, RoundedCornerShape(Radius.medium))
+            .clip(RoundedCornerShape(Radius.medium))
+            .background(NsColors.Surface)
+            .padding(Spacing.cardPadding),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         Text(
             text = c.date.toLongDate(),
-            style = MaterialTheme.typography.bodySmall,
-            color = NsColors.TextTertiary,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = NsColors.Primary,
         )
+
         if (!c.doctor.name.isNullOrBlank()) {
-            val label = buildString {
+            val doctorLabel = buildString {
                 append(c.doctor.name)
                 val spec = c.doctor.customSpecialty?.ifBlank { null }
                     ?: c.doctor.specialty?.let { MedicalSpecialties.labelOf(it) }
                 if (!spec.isNullOrBlank()) append(" · $spec")
             }
-            Text(label, style = MaterialTheme.typography.bodySmall, color = NsColors.TextSecondary)
+            Text(
+                text = doctorLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                color = NsColors.TextPrimary,
+            )
         }
+
         if (!c.clinic.isNullOrBlank()) {
-            Text(c.clinic, style = MaterialTheme.typography.bodySmall, color = NsColors.TextSecondary)
+            Text(
+                text = c.clinic,
+                style = MaterialTheme.typography.bodySmall,
+                color = NsColors.TextSecondary,
+            )
+        }
+
+        val hasExtras = !c.notes.isNullOrBlank() || c.tags.isNotEmpty()
+        if (hasExtras) {
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = Spacing.xs),
+                color = NsColors.Border,
+            )
+            if (!c.notes.isNullOrBlank()) {
+                Text(
+                    text = c.notes,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = NsColors.TextSecondary,
+                )
+            }
+            if (c.tags.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.chipGap),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.chipGap),
+                ) {
+                    c.tags.forEach { NsChip(text = it, variant = NsChipVariant.Neutral) }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun SectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = NsColors.TextPrimary,
+        modifier = Modifier.padding(
+            horizontal = Spacing.screenPaddingH,
+            vertical = 12.dp,
+        ),
+    )
 }
 
 @Composable
@@ -239,7 +277,12 @@ private fun MedicationItem(med: Medication) {
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(med.name, style = MaterialTheme.typography.titleSmall, color = NsColors.TextPrimary, modifier = Modifier.weight(1f))
+            Text(
+                text = med.name,
+                style = MaterialTheme.typography.titleSmall,
+                color = NsColors.TextPrimary,
+                modifier = Modifier.weight(1f),
+            )
             if (med.contraindicated) {
                 NsChip(text = "Contraindicado", variant = NsChipVariant.Danger)
             }
@@ -253,7 +296,11 @@ private fun MedicationItem(med: Medication) {
             Text(detail, style = MaterialTheme.typography.bodySmall, color = NsColors.TextSecondary)
         }
         if (!med.activeIngredient.isNullOrBlank()) {
-            Text("Princípio: ${med.activeIngredient}", style = MaterialTheme.typography.bodySmall, color = NsColors.TextTertiary)
+            Text(
+                text = "Princípio: ${med.activeIngredient}",
+                style = MaterialTheme.typography.bodySmall,
+                color = NsColors.TextTertiary,
+            )
         }
         if (med.efficacy != null) {
             NsChip(text = med.efficacy.label, variant = NsChipVariant.Neutral)
@@ -282,29 +329,13 @@ private fun ExamItem(
             Text(exam.notes, style = MaterialTheme.typography.bodySmall, color = NsColors.TextSecondary)
         }
         if (resultImages.isNotEmpty()) {
-            PrescriptionGrid(
-                images = resultImages,
-                onTap = onViewImages,
-            )
+            ImageGrid(images = resultImages, onTap = onViewImages)
         }
     }
 }
 
 @Composable
-private fun SectionTitle(title: String, compact: Boolean = false) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        color = NsColors.TextPrimary,
-        modifier = Modifier.padding(
-            horizontal = if (compact) 0.dp else Spacing.screenPaddingH,
-            vertical = if (compact) 4.dp else 12.dp,
-        ),
-    )
-}
-
-@Composable
-private fun PrescriptionGrid(
+private fun ImageGrid(
     images: List<ImageDisplay>,
     onTap: (index: Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -325,7 +356,7 @@ private fun PrescriptionGrid(
                                 .memoryCacheKey(img.cacheKey)
                                 .diskCacheKey(img.cacheKey)
                                 .build(),
-                            contentDescription = "Receita ${index + 1}",
+                            contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .weight(1f)
@@ -342,7 +373,6 @@ private fun PrescriptionGrid(
     }
 }
 
-// Need specialties label access
 private object MedicalSpecialties {
     fun labelOf(key: String): String =
         com.example.nossasaudeapp.domain.model.MedicalSpecialties.labelOf(key)

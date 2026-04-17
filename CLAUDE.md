@@ -9,6 +9,7 @@ App Android familiar (Kotlin/Jetpack Compose) para gerir consultas, exames e med
 - **Código:** inglês (classes, variáveis, comentários).
 - **Strings de UI:** pt-BR (labels, mensagens de erro, títulos).
 - **Commits e documentação:** pt-BR.
+- **Versionamento:** `versionCode` incrementa +1 a cada release; `versionName` segue semver (`major.minor.patch`). Atualizar em `app/build.gradle.kts` antes de criar a tag.
 - **Estilo visual:** seguir `docs/STYLE_GUIDE.md`. Nunca introduzir cores, tipografia ou espaçamentos fora dos tokens de `ui/theme/`.
 - **Referências fiéis ao mockup:** `docs/nossasaude-home.html` é a verdade de design para a Home. Outras telas devem manter o mesmo tom (coral + teal sobre bege, cards brancos com border radius 16dp).
 
@@ -178,6 +179,26 @@ Todas as listas de opções de dropdown devem ser ordenadas alfabeticamente por 
 
 ---
 
+## Layouts das telas principais
+
+### MemberProfileScreen
+`MemberHeader` é composto por: avatar (80dp) → nome (`titleLarge`) + chip de tipo sanguíneo centralizado → `NsStatCardRow` com idade/peso/altura (números sem unidade como `number`, unidade como `label`) → `ChipGroupCard` para alergias → `ChipGroupCard` para condições crônicas. `ChipGroupCard` é um card branco privado com label colorido + `FlowRow` de chips.
+
+`ConsultationListItem` usa painel esquerdo com fundo `PrimarySoft` exibindo dia e mês (extraídos de `toShortDate().split(" ")`) em destaque coral, e coluna direita com motivo + médico. Data completa não aparece no item.
+
+Empty state de consultas usa `NsEmptyState` com `Icons.Default.EventNote`.
+
+### ConsultationDetailScreen
+`ConsultationHeader` é um card único (`Surface` com sombra e `Radius.medium`) contendo: data em coral (`titleMedium`, `FontWeight.SemiBold`), médico + especialidade (`bodyMedium`), clínica (`bodySmall`). Se houver observações ou tags, um `HorizontalDivider` separa o bloco meta do bloco extra — observações em `bodySmall` e tags como `FlowRow` de chips. **Não existem seções separadas de Tags e Observações no `LazyColumn`**.
+
+Ordem das seções no `LazyColumn`: **Receitas → Medicamentos → Exames**.
+
+`SectionTitle` não tem parâmetro `compact` — estilo único para todas as seções.
+
+`PrescriptionGrid` foi renomeada para `ImageGrid` (usada tanto em receitas quanto em resultados de exames).
+
+---
+
 ## Navegação
 
 `ui/navigation/NavRoutes.kt` centraliza rotas. Helpers geram URLs com argumentos:
@@ -281,6 +302,8 @@ Testes end-to-end que exercitam Room real + Retrofit real contra o LocalStack lo
 25. **`reconcileRemote()` usando delete+reinsert de exames apaga `result_images` em cascata** — `ResultImageEntity` tem `onDelete = ForeignKey.CASCADE` em relação a `ExamEntity`. Chamar `dao.deleteExamsFor()` dentro de `reconcileRemote()` deleta todas as `result_images` por cascade, inclusive placeholders PENDING ainda não enviados ao S3. Quando `savePulled()` roda logo depois, `pendingResultImages` já está vazio — o placeholder é perdido e `executePendingUpload` não encontra a linha local para fazer o swap após o upload, fazendo a imagem desaparecer localmente. **Solução:** `reconcileRemote()` deve atualizar `remoteId` dos exames via `UPDATE` direto (`dao.updateExamRemoteId(id, remoteId)`) sem deletar e reinserir os registros.
 26. **Deletar imagem na edição sem filtrar do `updated` antes de `consultationRepository.update()`** — `replaceFullConsultation` reconstrói todas as linhas de `prescription_images` e `result_images` a partir do objeto `Consultation` passado. Se o s3Key deletado ainda estiver em `updated.prescriptionImages` (ou `updated.exams[*].resultImages`), ele é reinserido localmente mesmo após a chamada `removePrescriptionImage`/`removeExamImage` ao servidor. Em `save()` modo edição, filtrar `deletedPrescriptionS3Keys` de `existing.prescriptionImages` e `draft.deletedResultS3Keys` de cada `existingExam.resultImages` antes de montar o objeto `updated`.
 27. **Deletar imagem PENDING sem cancelar o `PendingUploadEntity`** — imagens com `uploadStatus = PENDING` (s3Key começa com `local://`) ainda não chegaram ao S3, portanto não precisam de chamada à API. Basta chamar `imageRepository.cancelPendingUpload(localPath)` para remover da fila `pending_uploads`. Chamar `removePrescriptionImage`/`removeExamImage` no servidor para uma imagem PENDING resultará em erro 404.
+28. **Criar seções separadas de Tags e Observações em `ConsultationDetailScreen`** — esses campos vivem dentro do `ConsultationHeader` (card de cabeçalho), separados por `HorizontalDivider`. Não adicionar itens independentes no `LazyColumn` para eles.
+29. **Alterar a ordem das seções em `ConsultationDetailScreen`** — a ordem correta é Receitas → Medicamentos → Exames. Não reordenar sem intenção deliberada.
 
 ---
 
@@ -295,6 +318,15 @@ Testes end-to-end que exercitam Room real + Retrofit real contra o LocalStack lo
 
 ---
 
+## Git e releases
+
+- **Branches:** `development` (trabalho do dia a dia) e `master` (releases estáveis).
+- **Fluxo de release:** atualizar `versionCode` (+1) e `versionName` (semver) em `app/build.gradle.kts` + adicionar seção no `RELEASENOTES.md` → commit na `development` → merge na `master` → tag anotada (`git tag -a vX.Y.Z -m "..."`) → push master + tag.
+- **`RELEASENOTES.md`** na raiz — todas as versões listadas no mesmo arquivo, da mais recente para a mais antiga.
+- Nunca commitar `local.properties` (já no `.gitignore`).
+
+---
+
 ## Documentos de referência
 
 - `docs/dreq.md` — requisitos funcionais/não-funcionais.
@@ -302,3 +334,4 @@ Testes end-to-end que exercitam Room real + Retrofit real contra o LocalStack lo
 - `docs/STYLE_GUIDE.md` — design tokens e componentes (**autoridade visual**).
 - `docs/nossasaude-home.html` — mockup aprovado da Home.
 - `docs/development-plan.md` — plano de desenvolvimento por etapas (status).
+- `RELEASENOTES.md` — histórico de versões do app.

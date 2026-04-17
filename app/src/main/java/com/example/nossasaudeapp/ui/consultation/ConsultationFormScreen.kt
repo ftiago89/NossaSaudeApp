@@ -300,7 +300,7 @@ private fun MedicationCard(
         NsTextField(value = draft.name, onValueChange = { onUpdate(draft.copy(name = it)) }, label = "Nome", required = true)
         NsTextField(value = draft.activeIngredient, onValueChange = { onUpdate(draft.copy(activeIngredient = it)) }, label = "Princípio ativo")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            NsTextField(value = draft.dosage, onValueChange = { onUpdate(draft.copy(dosage = it)) }, label = "Dose", modifier = Modifier.weight(1f))
+            NsTextField(value = draft.dosage, onValueChange = { onUpdate(draft.copy(dosage = it)) }, label = "Dosagem", modifier = Modifier.weight(1f))
             NsSearchableDropdown(
                 label = "Forma",
                 options = formOptions,
