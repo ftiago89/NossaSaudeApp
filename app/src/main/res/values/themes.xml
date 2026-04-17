@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.NossaSaudeApp" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.NossaSaude.Splash" parent="Theme.SplashScreen">
+        <!-- Fundo coral, igual ao ic_launcher_background -->
+        <item name="windowSplashScreenBackground">#E8634A</item>
+        <!-- Ícone adaptativo existente (coração branco com cruz) -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <!-- Tema do app que assume depois da splash -->
+        <item name="postSplashScreenTheme">@style/Theme.NossaSaudeApp</item>
+    </style>
+
+</resources>
