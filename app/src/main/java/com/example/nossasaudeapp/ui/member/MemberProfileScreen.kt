@@ -9,13 +9,11 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -44,17 +43,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.nossasaudeapp.domain.model.Consultation
 import com.example.nossasaudeapp.domain.model.Member
-import com.example.nossasaudeapp.domain.model.Medication
 import com.example.nossasaudeapp.ui.components.NsAvatar
 import com.example.nossasaudeapp.ui.components.NsChip
 import com.example.nossasaudeapp.ui.components.NsChipVariant
 import com.example.nossasaudeapp.ui.components.NsContraindicationAlert
+import com.example.nossasaudeapp.ui.components.NsEmptyState
 import com.example.nossasaudeapp.ui.components.NsFab
+import com.example.nossasaudeapp.ui.components.NsStatCardRow
 import com.example.nossasaudeapp.ui.components.NsTopBar
 import com.example.nossasaudeapp.ui.components.initialsFromName
 import com.example.nossasaudeapp.ui.theme.Elevation
@@ -172,14 +174,11 @@ fun MemberProfileScreen(
 
             if (state.consultations.isEmpty() && !state.isLoading) {
                 item {
-                    Text(
-                        text = "Nenhuma consulta registrada",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NsColors.TextTertiary,
-                        modifier = Modifier.padding(
-                            horizontal = Spacing.screenPaddingH,
-                            vertical = 8.dp,
-                        ),
+                    NsEmptyState(
+                        title = "Nenhuma consulta registrada",
+                        subtitle = "Toque no + para adicionar a primeira consulta",
+                        icon = Icons.Default.EventNote,
+                        modifier = Modifier.padding(horizontal = Spacing.screenPaddingH),
                     )
                 }
             }
@@ -245,54 +244,88 @@ private fun MemberHeader(member: Member) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.screenPaddingH, vertical = 8.dp),
+            .padding(horizontal = Spacing.screenPaddingH, vertical = Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         NsAvatar(
             initials = initialsFromName(member.name),
             colorIndex = 0,
-            size = 72.dp,
+            size = 80.dp,
         )
-        Text(
-            text = member.name,
-            style = MaterialTheme.typography.titleMedium,
-            color = NsColors.TextPrimary,
-        )
-        val metaParts = buildList {
-            member.birthDate?.let { add(ageLabel(it, Clock.System.now())) }
-            member.weightKg?.let { add("%.0fkg".format(it)) }
-            member.heightCm?.let { add("%.0fcm".format(it)) }
-        }
-        if (metaParts.isNotEmpty()) {
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
             Text(
-                text = metaParts.joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = NsColors.TextSecondary,
+                text = member.name,
+                style = MaterialTheme.typography.titleLarge,
+                color = NsColors.TextPrimary,
             )
+            if (member.bloodType != null) {
+                NsChip(text = member.bloodType.label, variant = NsChipVariant.BloodType)
+            }
         }
-        if (member.bloodType != null) {
-            NsChip(text = member.bloodType.label, variant = NsChipVariant.BloodType)
+
+        val statItems = buildList<Triple<String, String, Color>> {
+            member.birthDate?.let { bd ->
+                val ageNum = ageLabel(bd, Clock.System.now()).substringBefore(" ")
+                if (ageNum.isNotBlank()) add(Triple(ageNum, "anos", NsColors.Primary))
+            }
+            member.weightKg?.let { add(Triple("%.0f".format(it), "kg", NsColors.AccentTeal)) }
+            member.heightCm?.let { add(Triple("%.0f".format(it), "cm", NsColors.AccentTeal)) }
         }
+        if (statItems.isNotEmpty()) {
+            NsStatCardRow(items = statItems)
+        }
+
         if (member.allergies.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                member.allergies.forEach { NsChip(text = it, variant = NsChipVariant.Allergy, prefix = "⚠") }
+            ChipGroupCard(label = "Alergias", labelColor = NsColors.AllergyText) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.chipGap),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.chipGap),
+                ) {
+                    member.allergies.forEach { NsChip(text = it, variant = NsChipVariant.Allergy, prefix = "⚠") }
+                }
             }
         }
+
         if (member.chronicConditions.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                member.chronicConditions.forEach { NsChip(text = it, variant = NsChipVariant.Condition) }
+            ChipGroupCard(label = "Condições crônicas", labelColor = NsColors.ConditionText) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.chipGap),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.chipGap),
+                ) {
+                    member.chronicConditions.forEach { NsChip(text = it, variant = NsChipVariant.Condition) }
+                }
             }
         }
-        Spacer(Modifier.height(4.dp))
+    }
+}
+
+@Composable
+private fun ChipGroupCard(
+    label: String,
+    labelColor: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(Elevation.cardDefault, RoundedCornerShape(Radius.medium))
+            .clip(RoundedCornerShape(Radius.medium))
+            .background(NsColors.Surface)
+            .padding(Spacing.cardPadding),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = labelColor,
+        )
+        content()
     }
 }
 
@@ -302,42 +335,67 @@ private fun ConsultationListItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val dateParts = consultation.date.toShortDate().split(" ")
+    val day = dateParts.getOrElse(0) { "" }
+    val month = dateParts.getOrElse(1) { "" }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .shadow(Elevation.cardDefault, RoundedCornerShape(Radius.medium))
             .clip(RoundedCornerShape(Radius.medium))
             .background(NsColors.Surface)
-            .clickable(onClick = onClick)
-            .padding(Spacing.cardPadding),
+            .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .background(NsColors.PrimarySoft)
+                .padding(horizontal = 14.dp, vertical = Spacing.cardPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = day,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = NsColors.Primary,
+            )
+            Text(
+                text = month,
+                style = MaterialTheme.typography.labelSmall,
+                color = NsColors.TextTertiary,
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = Spacing.md, vertical = Spacing.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
             Text(
                 text = consultation.reason,
                 style = MaterialTheme.typography.titleSmall,
                 color = NsColors.TextPrimary,
             )
-            val doctorText = consultation.doctor.name
-            if (!doctorText.isNullOrBlank()) {
+            val doctorName = consultation.doctor.name
+            if (!doctorName.isNullOrBlank()) {
                 Text(
-                    text = doctorText,
+                    text = doctorName,
                     style = MaterialTheme.typography.bodySmall,
                     color = NsColors.TextSecondary,
                 )
             }
-            Text(
-                text = consultation.date.toShortDate(),
-                style = MaterialTheme.typography.bodySmall,
-                color = NsColors.TextTertiary,
-            )
         }
+
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
             tint = NsColors.TextTertiary,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier
+                .padding(end = Spacing.md)
+                .size(20.dp),
         )
     }
 }

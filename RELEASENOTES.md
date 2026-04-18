@@ -2,6 +2,12 @@
 
 ---
 
+## v1.0.0 (2026-04-18)
+
+Primeira versão pública estável do app.
+
+---
+
 ## v0.0.1 (2026-04-17)
 
 Primeira versão estável do app.
